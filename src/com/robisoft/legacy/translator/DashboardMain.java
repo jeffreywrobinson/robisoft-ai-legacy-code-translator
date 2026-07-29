@@ -9,6 +9,7 @@ import com.gluonhq.richtextarea.model.Document;
 import com.gluonhq.richtextarea.model.ParagraphDecoration;
 import com.robisoft.legacy.translator.helpers.CommonHelpers;
 import com.robisoft.legacy.translator.helpers.Constants;
+import com.robisoft.legacy.translator.ui.BusyDialog;
 
 import javafx.application.Application;
 import javafx.concurrent.Task;
@@ -40,8 +41,18 @@ import javafx.scene.layout.VBox;
 import javafx.scene.control.TitledPane;
 import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 
 public class DashboardMain extends Application {
+	 private static final Logger LOGGER = Logger.getLogger(DashboardMain.class.getName());
+	 private static final int MAX_RETRIES = 3;
+	 private static final Duration TASK_TIMEOUT = Duration.ofSeconds(60);
+  	 private BusyDialog busyDialog;
+  	 
 	 final static String AppName = "AI Legacy Code Translator";
 	 final static String startText = "Awaiting Translation";
 	 private String currentFileName="";
@@ -286,62 +297,109 @@ public class DashboardMain extends Application {
 	 * Setup and start background thread
 	 */
 	public synchronized void startTask(Stage primaryStage, String action) {
-	    Alert dialog = new Alert(Alert.AlertType.NONE);
-	    dialog.initModality(Modality.APPLICATION_MODAL);
-	    dialog.initOwner(primaryStage);
-	    dialog.setHeaderText(
-	            "Please Wait -- Contacting "
-	            + Constants.getModel().toUpperCase());
-	    dialog.setGraphic(new ProgressIndicator());
-	    dialog.show();
 
+	    // --- Build dialog message ---
+	    String message = "Please Wait -- Contacting " + Constants.getModel().toUpperCase();
+
+	    // --- Create busy dialog ---
+	    busyDialog = new BusyDialog(primaryStage, message);
+	    busyDialog.show();
+	    getScene().setCursor(Cursor.WAIT);
+
+	    // --- Background task with timeout + retry + global error handling ---
 	    Task<String> task = new Task<>() {
+
 	        @Override
 	        protected String call() throws Exception {
+
 	            setPrompt(action);
 	            p = new ProcessAction();
 
-	            return p.executeAPI(getPrompt(), getPayload());
+	            int attempt = 0;
+	            Instant startTime = Instant.now();
+
+	            while (attempt < MAX_RETRIES) {
+
+	                if (isCancelled()) {
+	                    LOGGER.info("Task cancelled before attempt " + (attempt + 1));
+	                    throw new RuntimeException("Task cancelled");
+	                }
+
+	                attempt++;
+	                LOGGER.info("executeAPI attempt " + attempt + " for action: " + action);
+
+	                try {
+	                    // Timeout check
+	                    if (Duration.between(startTime, Instant.now()).compareTo(TASK_TIMEOUT) > 0) {
+	                        LOGGER.warning("Timeout exceeded for action: " + action);
+	                        throw new RuntimeException("Operation timed out after " + TASK_TIMEOUT.getSeconds() + " seconds");
+	                    }
+
+	                    // Execute API call
+	                    String result = p.executeAPI(primaryStage, getPrompt(), getPayload());
+	                    LOGGER.info("executeAPI succeeded on attempt " + attempt);
+	                    return result;
+
+	                } catch (Exception ex) {
+	                    LOGGER.log(Level.SEVERE, "executeAPI failed on attempt " + attempt, ex);
+
+	                    if (attempt >= MAX_RETRIES) {
+	                        throw ex; // propagate after last retry
+	                    }
+
+	                    // Optional retry backoff
+	                    Thread.sleep(1000);
+	                }
+	            }
+
+	            throw new RuntimeException("Task failed after " + MAX_RETRIES + " attempts");
 	        }
 	    };
 
-	    task.setOnSucceeded(event -> {
-	        String response = task.getValue();
-
-	        dialog.close();
+	    // --- Cancellation support ---
+	    busyDialog.setOnCancel(() -> {
+	        LOGGER.info("User clicked Cancel for action: " + action);
+	        task.cancel();
 	        getScene().setCursor(Cursor.DEFAULT);
-	        setResponse(action, response);
-
-	  //      CommonHelpers.showAlertLater(
-	  //              AlertType.INFORMATION,
-	  //              "Process Completed");
 	    });
 
+	    // --- SUCCESS handler ---
+	    task.setOnSucceeded(event -> {
+	        busyDialog.close();
+	        getScene().setCursor(Cursor.DEFAULT);
+
+	        String response = task.getValue();
+	        LOGGER.info("Task succeeded for action: " + action);
+
+	        setResponse(action, response);
+	    });
+
+	    // --- FAILURE handler ---
 	    task.setOnFailed(event -> {
-	        dialog.close();
+	        busyDialog.close();
 	        getScene().setCursor(Cursor.DEFAULT);
 
 	        Throwable exception = task.getException();
 	        if (exception != null) {
-	            exception.printStackTrace();
+	            LOGGER.log(Level.SEVERE, "Task failed for action: " + action, exception);
 	        }
 
-	    //    CommonHelpers.showAlertLater(
-	    //            AlertType.ERROR,
-	    //            "Process Failed");
+	        CommonHelpers.showAlertLater(AlertType.ERROR, "Process Failed");
 	    });
 
+	    // --- CANCEL handler ---
 	    task.setOnCancelled(event -> {
-	        dialog.close();
+	        busyDialog.close();
 	        getScene().setCursor(Cursor.DEFAULT);
+	        LOGGER.info("Task cancelled for action: " + action);
 	    });
 
-	    getScene().setCursor(Cursor.WAIT);
-
+	    // --- Start background thread ---
 	    backgroundThread = new Thread(task);
 	    backgroundThread.setDaemon(true);
 	    backgroundThread.start();
 	}
+
 	
    /**
    	 * builds the application menu   

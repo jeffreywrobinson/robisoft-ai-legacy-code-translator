@@ -6,6 +6,11 @@ import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 import com.robisoft.legacy.translator.helpers.Constants;
 
+import javafx.scene.control.Alert;
+import javafx.scene.control.ProgressIndicator;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
+
 
 public class ProcessAction {
 
@@ -19,7 +24,7 @@ public class ProcessAction {
    * Generic method to send each line to the OpenAI API
    * 
    */
-  public String executeAPI(String prompt,String inputStr) {	 
+  public String executeAPI(Stage primaryStage,String prompt,String inputStr) {	 
       StringBuilder payload = new StringBuilder(prompt + ":" + inputStr);
       OpenAIClient client = OpenAIOkHttpClient.fromEnv();
 
