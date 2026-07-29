@@ -1,9 +1,10 @@
-package com.robisoft.sabretalk.translator;
+package com.robisoft.legacy.translator;
 
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
+import com.robisoft.legacy.translator.helpers.Constants;
 
 
 public class ProcessAction {
@@ -24,15 +25,20 @@ public class ProcessAction {
 
       ResponseCreateParams params = ResponseCreateParams.builder()
               .input(payload.toString())
-              .model("gpt-5.5")
+              .model(Constants.getModel())
               .build();
 
       Response response = client.responses().create(params);
-      //return the response
-      System.out.println(response.output().get(1).message().get().content().get(0).outputText().toString());
-      return(response.toString());
-      //      return(response.output().get(1).message().get().content().get(0).outputText().toString());
+    
+      String text = response.output().stream()
+    	        .flatMap(item -> item.message().stream())
+    	        .flatMap(message -> message.content().stream())
+    	        .flatMap(content -> content.outputText().stream())
+    	        .map(com.openai.models.responses.ResponseOutputText::text)
+    	        .collect(java.util.stream.Collectors.joining());
 
+    	System.out.println(text);
+    	return text;
   }	  
 
  

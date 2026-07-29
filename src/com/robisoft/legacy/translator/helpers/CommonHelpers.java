@@ -1,4 +1,4 @@
-package com.robisoft.sabretalk.translator.helpers;
+package com.robisoft.legacy.translator.helpers;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
@@ -258,5 +258,4 @@ public class CommonHelpers {
       return(retFileName);	    	
     }
     
-
-}
+}  

@@ -1,4 +1,4 @@
-package com.robisoft.sabretalk.translator;
+package com.robisoft.legacy.translator;
 	
 import java.util.ArrayList;
 import java.util.List;
@@ -7,18 +7,21 @@ import com.gluonhq.richtextarea.RichTextArea;
 import com.gluonhq.richtextarea.model.DecorationModel;
 import com.gluonhq.richtextarea.model.Document;
 import com.gluonhq.richtextarea.model.ParagraphDecoration;
-import com.robisoft.sabretalk.translator.helpers.CommonHelpers;
-import com.robisoft.sabretalk.translator.helpers.Constants;
+import com.robisoft.legacy.translator.helpers.CommonHelpers;
+import com.robisoft.legacy.translator.helpers.Constants;
 
 import javafx.application.Application;
+import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
 import javafx.geometry.Pos;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.Cursor;
 import javafx.scene.control.Accordion;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -26,6 +29,7 @@ import javafx.scene.control.ListView;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
+import javafx.scene.control.ProgressIndicator;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
 import javafx.scene.image.Image;
@@ -38,7 +42,7 @@ import javafx.scene.text.Text;
 import javafx.scene.text.TextFlow;
 
 public class DashboardMain extends Application {
-	 final static String AppName = "AI SabreTalk Translator";
+	 final static String AppName = "AI Legacy Code Translator";
 	 final static String startText = "Awaiting Translation";
 	 private String currentFileName="";
 	 private String prompt="";
@@ -79,7 +83,7 @@ public class DashboardMain extends Application {
        button1.setOnAction(new EventHandler<ActionEvent>() {
            @Override
            public void handle(ActionEvent event) {
-           	   startTask("stats");
+           	   startTask(primaryStage,"stats");
            }
        });
 
@@ -92,7 +96,7 @@ public class DashboardMain extends Application {
        button2.setOnAction(new EventHandler<ActionEvent>() {
            @Override
            public void handle(ActionEvent event) {
-        	   startTask("design");
+        	   startTask(primaryStage,"design");
          }
        });
 
@@ -105,7 +109,7 @@ public class DashboardMain extends Application {
        button3.setOnAction(new EventHandler<ActionEvent>() {
            @Override
            public void handle(ActionEvent event) {
-        	   startTask("pseudo");
+        	   startTask(primaryStage,"pseudo");
            }
        });
 
@@ -118,7 +122,7 @@ public class DashboardMain extends Application {
        button4.setOnAction(new EventHandler<ActionEvent>() {
            @Override
            public void handle(ActionEvent event) {
-              startTask("chart");
+              startTask(primaryStage,"chart");
            }
        });
 
@@ -131,7 +135,7 @@ public class DashboardMain extends Application {
        button5.setOnAction(new EventHandler<ActionEvent>() {
            @Override
            public void handle(ActionEvent event) {
-        	   startTask("symtbl");
+        	   startTask(primaryStage,"symtbl");
          }
        });
 
@@ -144,7 +148,7 @@ public class DashboardMain extends Application {
        button6.setOnAction(new EventHandler<ActionEvent>() {
            @Override
            public void handle(ActionEvent event) {
-        	   startTask("target");
+        	   startTask(primaryStage,"target");
            }
        });
 
@@ -265,7 +269,7 @@ public class DashboardMain extends Application {
        
        //Set the scene        
        setScene(new Scene(pane, 1000, 600));
-       scene.getStylesheets().add("com/robisoft/sabretalk/translator/application.css");        
+       scene.getStylesheets().add("com/robisoft/legacy/translator/application.css");        
        primaryStage.setScene(getScene());
        primaryStage.setTitle(AppName);
        Image appIcon = new Image(path+"system1.png");       
@@ -281,56 +285,62 @@ public class DashboardMain extends Application {
 	/**
 	 * Setup and start background thread
 	 */
-	public synchronized void startTask(String action) {
-		
-		Runnable task = new Runnable()
-		{
-			public void run()
-			{
-				executeAction(action);
-			}
-		};
+	public synchronized void startTask(Stage primaryStage, String action) {
+	    Alert dialog = new Alert(Alert.AlertType.NONE);
+	    dialog.initModality(Modality.APPLICATION_MODAL);
+	    dialog.initOwner(primaryStage);
+	    dialog.setHeaderText(
+	            "Please Wait -- Contacting "
+	            + Constants.getModel().toUpperCase());
+	    dialog.setGraphic(new ProgressIndicator());
+	    dialog.show();
 
-		// Run the task in a background thread
-		backgroundThread = new Thread(task);
+	    Task<String> task = new Task<>() {
+	        @Override
+	        protected String call() throws Exception {
+	            setPrompt(action);
+	            p = new ProcessAction();
 
-		// Terminate the running thread if the application exits
-		backgroundThread.setDaemon(true);
+	            return p.executeAPI(getPrompt(), getPayload());
+	        }
+	    };
 
-		// Start the thread
-		backgroundThread.start();
-		
-		//Show wait indicator
-		getScene().setCursor(Cursor.WAIT);
-	}
-	
-   /**
-    * Execute selected button action
-    * 
-    */
-	private void executeAction(String tcAction) {
-	   
-	   //Establish the correct prompt
-	   setPrompt(tcAction);
-		
-		//Initiate the background process control module	  	  
-	   p = new ProcessAction();
-		
-	   /******************************************************
-	    *Invocation of bridge to the API                  
-	    *****************************************************/
-       String response = p.executeAPI(getPrompt(),getPayload());
-       
-       //Turn off wait indicator
-       getScene().setCursor(Cursor.DEFAULT);
-       
-       if (!p.isAbortFlag()) {
-       	   setResponse(tcAction,response);
-     	   CommonHelpers.showAlertLater(AlertType.INFORMATION,"Process Completed"); 		
-       }	 
-       else {   
-		   CommonHelpers.showAlertLater(AlertType.ERROR,"Process Aborted"); 		
-	   }    
+	    task.setOnSucceeded(event -> {
+	        String response = task.getValue();
+
+	        dialog.close();
+	        getScene().setCursor(Cursor.DEFAULT);
+	        setResponse(action, response);
+
+	  //      CommonHelpers.showAlertLater(
+	  //              AlertType.INFORMATION,
+	  //              "Process Completed");
+	    });
+
+	    task.setOnFailed(event -> {
+	        dialog.close();
+	        getScene().setCursor(Cursor.DEFAULT);
+
+	        Throwable exception = task.getException();
+	        if (exception != null) {
+	            exception.printStackTrace();
+	        }
+
+	    //    CommonHelpers.showAlertLater(
+	    //            AlertType.ERROR,
+	    //            "Process Failed");
+	    });
+
+	    task.setOnCancelled(event -> {
+	        dialog.close();
+	        getScene().setCursor(Cursor.DEFAULT);
+	    });
+
+	    getScene().setCursor(Cursor.WAIT);
+
+	    backgroundThread = new Thread(task);
+	    backgroundThread.setDaemon(true);
+	    backgroundThread.start();
 	}
 	
    /**

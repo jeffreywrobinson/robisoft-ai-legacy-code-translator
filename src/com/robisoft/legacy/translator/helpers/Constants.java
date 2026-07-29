@@ -1,6 +1,8 @@
-package com.robisoft.sabretalk.translator.helpers;
+package com.robisoft.legacy.translator.helpers;
 
 public class Constants {
+
+	private static final String DEFAULT_MODEL = "gpt-5.5";
 
 	//*ATTENTION: update this filename each season with current Year value ***
    //public static String ConfDB = "/Users/jeffreyrobinson/Documents/NFL/DB/ConfStats-2022.csv";
@@ -19,7 +21,7 @@ public class Constants {
    		+ "QWN0aW5nIGFzIGEgbGVnYWN5IHByb2dyYW1tZXIvYW5hbHlzdCwgY29udmVydCB0aGUgbGVnYWN5IGNvZGUgdG8gSmF2YTsgcmVwbGFjZSBhbnkgb3V0ZGF0ZSBsZWdhY3kgCmNvZGluZyBhc3N1bXB0aW9ucyB3aXRoIG1vZGVybiBKYXZhIGNvZGUgYW5kIG1vZGVybiBEYXRhYmFzZSBjb2RpbmcgcmVwbGFjZW1lbnRzLiBPbmx5IHJldHVybiB0aGUKZmluYWwgY29kZS4gRG8gbm90IGluY2x1ZGUgZXhwbGFuYXRpb25zLCBjYXZlYXRzLCBvciBlbGFib3JhdGlvbnMuIAoK";
    
    
-   public static final String[] llms = new String[] {
+   public static final String[] models = new String[] {
 		      "gpt-5.5",
 		      "gpt-5.4",
 		      "nova-pro-5",
@@ -27,6 +29,12 @@ public class Constants {
 		   	          
    };
    
-   
+   public static String getModel() {
+	    String configuredModel = System.getenv("OPENAI_MODEL");
+
+	    return configuredModel == null || configuredModel.isBlank()
+	            ? DEFAULT_MODEL
+	            : configuredModel;
+	} 
   
 }
