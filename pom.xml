@@ -1,7 +1,7 @@
 <project xmlns="https://maven.apache.org/POM/4.0.0" xmlns:xsi="https://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <groupId>AI-SabreTalk-Translator</groupId>
-  <artifactId>AI-SabreTalk-Translator</artifactId>
+  <groupId>AI-Legacy-Code-Translator</groupId>
+  <artifactId>AI-Legacy-Code-Translator</artifactId>
   <version>0.0.1</version>
  <build>
     <sourceDirectory>src</sourceDirectory>
@@ -32,7 +32,7 @@
       <archive>
         <manifest>
           <addClasspath>true</addClasspath>
-          <mainClass>com.robisoft.sabretalk.translator.DashboardMain</mainClass>
+          <mainClass>com.robisoft.legacy.translator.DashboardMain</mainClass>
         </manifest>
        </archive>
     </configuration>
@@ -51,7 +51,7 @@
         <artifactId>javafx-maven-plugin</artifactId>
         <version>0.0.8</version>
         <configuration>
-            <mainClass>com.robisoft.sabretalk.translator.DashboardMain</mainClass>
+            <mainClass>com.robisoft.legacy.translator.DashboardMain</mainClass>
         </configuration>
     </plugin>
    </plugins>
