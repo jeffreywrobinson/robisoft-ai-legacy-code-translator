@@ -45,6 +45,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.io.IOException;
 
 
 public class DashboardMain extends Application {
@@ -336,7 +337,7 @@ public class DashboardMain extends Application {
 	                    }
 
 	                    // Execute API call
-	                    String result = p.executeAPI(primaryStage, getPrompt(), getPayload());
+	                    String result = p.executeAPI(getPrompt(), getPayload());
 	                    LOGGER.info("executeAPI succeeded on attempt " + attempt);
 	                    return result;
 
@@ -348,7 +349,12 @@ public class DashboardMain extends Application {
 	                    }
 
 	                    // Optional retry backoff
-	                    Thread.sleep(1000);
+	                    try {
+	                        Thread.sleep(1000L << (attempt - 1));
+	                    } catch (InterruptedException interrupted) {
+	                        Thread.currentThread().interrupt();
+	                        throw interrupted;
+	                    }
 	                }
 	            }
 
@@ -414,10 +420,15 @@ public class DashboardMain extends Application {
         	setCurrentFileName(CommonHelpers.chooseFileName("Open Source File","ALL","*.*"));
         	if ((getCurrentFileName()!=null) && (!getCurrentFileName().trim().isEmpty())) {
         		List<String> list1 = new ArrayList<String>();
-        		CommonHelpers.readFile2List(getCurrentFileName(),list1);
-        		if (list1.size()>0) {
-        			setPayload(list1);
-        			textSrc.setText(getPayload());
+        		try {
+        		    CommonHelpers.readFile2List(getCurrentFileName(),list1);
+        		    if (!list1.isEmpty()) {
+        			    setPayload(list1);
+        			    textSrc.setText(getPayload());
+        		    }
+        		} catch (IOException | IllegalArgumentException ex) {
+        		    LOGGER.log(Level.WARNING, "Unable to read selected source file", ex);
+        		    CommonHelpers.showAlert(AlertType.ERROR, stage, "Unable to open file", ex.getMessage());
         		}
         	}	
         	
