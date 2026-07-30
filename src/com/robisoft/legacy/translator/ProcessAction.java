@@ -6,30 +6,23 @@ import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 import com.robisoft.legacy.translator.helpers.Constants;
 
-import javafx.scene.control.Alert;
-import javafx.scene.control.ProgressIndicator;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
+public final class ProcessAction {
 
-
-public class ProcessAction {
-
-	public String previousURL=null, currentURL=null;
-	private boolean AbortFlag;
-	private boolean active=false;
-	private boolean pause=false;
+  private static final int MAX_PROMPT_LENGTH = 16_384;
+  private static final int MAX_INPUT_LENGTH = 1_000_000;
   
   
   /**
    * Generic method to send each line to the OpenAI API
    * 
    */
-  public String executeAPI(Stage primaryStage,String prompt,String inputStr) {	 
-      StringBuilder payload = new StringBuilder(prompt + ":" + inputStr);
+  public String executeAPI(String prompt, String inputStr) {
+      validateInput(prompt, inputStr);
+      String payload = prompt + "\n\n--- SOURCE CODE ---\n" + inputStr;
       OpenAIClient client = OpenAIOkHttpClient.fromEnv();
 
       ResponseCreateParams params = ResponseCreateParams.builder()
-              .input(payload.toString())
+              .input(payload)
               .model(Constants.getModel())
               .build();
 
@@ -42,33 +35,24 @@ public class ProcessAction {
     	        .map(com.openai.models.responses.ResponseOutputText::text)
     	        .collect(java.util.stream.Collectors.joining());
 
-    	System.out.println(text);
-    	return text;
-  }	  
+      if (text.isBlank()) {
+          throw new IllegalStateException("The model returned an empty response.");
+      }
+      return text;
+  }
 
- 
-   //Getters and Setters
-  //-----------------------------------------------------
-  public boolean isAbortFlag() {
-	  return(AbortFlag);
+  private static void validateInput(String prompt, String inputStr) {
+      if (prompt == null || prompt.isBlank()) {
+          throw new IllegalArgumentException("Prompt must not be blank.");
+      }
+      if (inputStr == null || inputStr.isBlank()) {
+          throw new IllegalArgumentException("Source code must not be blank.");
+      }
+      if (prompt.length() > MAX_PROMPT_LENGTH) {
+          throw new IllegalArgumentException("Prompt is too large.");
+      }
+      if (inputStr.length() > MAX_INPUT_LENGTH) {
+          throw new IllegalArgumentException("Source code is too large.");
+      }
   }
-  
-  public void setAbortFlag(boolean flag) {
-	  AbortFlag = flag;
-  }
-   public boolean isActive() {
-	  return(active);
-  }
-  
-  public void setActive(boolean flag) {
-	  active = flag;
-  }
-  public boolean isPause() {
-	  return(pause);
-  }
-  
-  public void setPause(boolean flag) {
-	  pause = flag;
-  }
-  
 }

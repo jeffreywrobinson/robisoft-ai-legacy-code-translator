@@ -1,10 +1,10 @@
 package com.robisoft.legacy.translator.helpers;
 
-import java.io.BufferedReader;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
@@ -31,6 +31,7 @@ import javafx.scene.layout.VBox;
 import javafx.scene.text.Text;
 
 public class CommonHelpers {
+    public static final long MAX_SOURCE_FILE_BYTES = 1_000_000;
 	
 	/**
 	 * Show and alert type dialog
@@ -145,62 +146,33 @@ public class CommonHelpers {
     }
 
     public static boolean doesFileExist(String fileName) {
-      BufferedReader reader; boolean flag=false;
-      try {
-    	reader = new BufferedReader(new FileReader(fileName));
-    	flag = true;
-    	reader.close();
-      }catch(FileNotFoundException fe) {
-    	 flag = false ;
-      }catch(IOException io) {
-    	 flag = false;
+      if (fileName == null || fileName.isBlank()) {
+          return false;
       }
-      
-      return(flag);
+      Path path = Path.of(fileName);
+      return Files.isRegularFile(path) && Files.isReadable(path);
     }
     
-    public static String readFileData(String fileName) {
-		StringBuilder wrkStr=new StringBuilder();
-		String line;
-		
-		BufferedReader reader=null;
-		String wrkLine = "";
-		try {
-			reader = new BufferedReader(new FileReader(fileName));
-			line = reader.readLine();
-			while(line != null) {		
-				wrkLine = line.trim();
-				//if (wrkLine.length()>72)
-				//  wrkLine = wrkLine.substring(1,72);
-				wrkStr.append(wrkLine + "\n");				
-				line = reader.readLine();				
-			}
-			reader.close();
-		}catch (IOException e) {
-		  e.printStackTrace();		
-		}
-		
-		return wrkStr.toString();
-	}
+    public static String readFileData(String fileName) throws IOException {
+        if (fileName == null || fileName.isBlank()) {
+            throw new IllegalArgumentException("File name must not be blank.");
+        }
+        Path path = Path.of(fileName);
+        if (!Files.isRegularFile(path) || !Files.isReadable(path)) {
+            throw new IOException("The selected path is not a readable file.");
+        }
+        long size = Files.size(path);
+        if (size > MAX_SOURCE_FILE_BYTES) {
+            throw new IOException("Source file exceeds the 1 MB safety limit.");
+        }
+        return Files.readString(path, StandardCharsets.UTF_8);
+    }
     
-    public static void readFile2List(String fileName,List<String> lineList) {		
-		String line;
-		
-		BufferedReader reader;
-		String wrkLine = "";
-		try {
-			reader = new BufferedReader(new FileReader(fileName));
-			line = reader.readLine();
-			while(line != null) {		
-				wrkLine = line.trim();
-				lineList.add(wrkLine);				
-				line = reader.readLine();				
-			}
-		}catch (IOException e) {
-			e.printStackTrace();
-		}
-				
-		return;
+    public static void readFile2List(String fileName,List<String> lineList) throws IOException {
+        if (lineList == null) {
+            throw new IllegalArgumentException("Destination list must not be null.");
+        }
+        lineList.addAll(readFileData(fileName).lines().toList());
 	}
     
     /**
@@ -212,8 +184,7 @@ public class CommonHelpers {
     	try {    		
 			Thread.sleep(milli);
 		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			Thread.currentThread().interrupt();
 		}  
     }
     
