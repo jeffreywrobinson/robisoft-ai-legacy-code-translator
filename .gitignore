@@ -10,3 +10,6 @@
 # Package Files
 *.jar
 /bin/
+
+# macOS
+.DS_Store
